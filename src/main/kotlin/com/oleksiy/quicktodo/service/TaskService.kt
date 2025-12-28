@@ -415,15 +415,21 @@ class TaskService : PersistentStateComponent<TaskService.State>, CommandExecutor
         val tasksToMove = taskIds.mapNotNull { findTask(it) }
         if (tasksToMove.size != taskIds.size) return false
 
+        // Calculate index adjustment for tasks being removed from same parent before target
+        val indexAdjustment = calculateIndexAdjustment(taskIds, targetParentId, targetIndex)
+
         // Remove all tasks from their current locations
         for (taskId in taskIds) {
             if (!removeTaskInternal(taskId)) return false
         }
 
+        // Adjust target index to account for removed items
+        val adjustedTargetIndex = targetIndex - indexAdjustment
+
         // Insert at new location
         if (targetParentId == null) {
             // Moving to root level
-            var insertIndex = targetIndex.coerceIn(0, myState.tasks.size)
+            var insertIndex = adjustedTargetIndex.coerceIn(0, myState.tasks.size)
             for (task in tasksToMove) {
                 task.level = 0
                 updateSubtaskLevels(task, 0)
@@ -434,7 +440,7 @@ class TaskService : PersistentStateComponent<TaskService.State>, CommandExecutor
             // Moving under a parent
             val targetParent = findTask(targetParentId) ?: return false
             if (!targetParent.canAddSubtask()) return false
-            var insertIndex = targetIndex.coerceIn(0, targetParent.subtasks.size)
+            var insertIndex = adjustedTargetIndex.coerceIn(0, targetParent.subtasks.size)
             for (task in tasksToMove) {
                 task.level = targetParent.level + 1
                 updateSubtaskLevels(task, task.level)
@@ -444,6 +450,24 @@ class TaskService : PersistentStateComponent<TaskService.State>, CommandExecutor
         }
 
         return true
+    }
+
+    private fun calculateIndexAdjustment(
+        taskIds: List<String>,
+        targetParentId: String?,
+        targetIndex: Int
+    ): Int {
+        val targetSiblings = if (targetParentId == null) {
+            myState.tasks
+        } else {
+            findTask(targetParentId)?.subtasks ?: return 0
+        }
+
+        // Count how many source tasks are in the same parent AND before the target index
+        return taskIds.count { taskId ->
+            val index = targetSiblings.indexOfFirst { it.id == taskId }
+            index >= 0 && index < targetIndex
+        }
     }
 
     private fun updateSubtaskLevels(task: Task, parentLevel: Int) {

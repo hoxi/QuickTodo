@@ -33,4 +33,7 @@ object ChecklistConstants {
 
     /** Delay between auto-scroll ticks (milliseconds) */
     const val AUTO_SCROLL_DELAY_MS = 50
+
+    /** Delay before expanding a collapsed node during drag hover (milliseconds) */
+    const val HOVER_EXPAND_DELAY_MS = 600
 }

@@ -44,6 +44,12 @@ class TaskDragDropHandler(
         performAutoScroll()
     }
 
+    // Hover-to-expand state
+    private var hoverExpandRow: Int = -1
+    private val hoverExpandTimer = Timer(ChecklistConstants.HOVER_EXPAND_DELAY_MS) {
+        expandHoveredNode()
+    }.apply { isRepeats = false }
+
     fun setup() {
         setupDragSource()
         setupDropTarget()
@@ -56,6 +62,7 @@ class TaskDragDropHandler(
             tree.repaint()
         }
         stopAutoScroll()
+        stopHoverExpand()
     }
 
     private fun updateAutoScroll(locationY: Int) {
@@ -94,6 +101,45 @@ class TaskDragDropHandler(
         autoScrollDirection = 0
         if (autoScrollTimer.isRunning) {
             autoScrollTimer.stop()
+        }
+    }
+
+    private fun updateHoverExpand(targetRow: Int, path: TreePath?) {
+        // Only trigger expand for collapsed nodes with children
+        if (targetRow < 0 || path == null) {
+            stopHoverExpand()
+            return
+        }
+
+        val isCollapsed = tree.isCollapsed(path)
+        val node = path.lastPathComponent as? CheckedTreeNode
+        val hasChildren = node != null && node.childCount > 0
+
+        if (isCollapsed && hasChildren) {
+            if (hoverExpandRow != targetRow) {
+                // Started hovering over a new collapsed node
+                hoverExpandRow = targetRow
+                hoverExpandTimer.restart()
+            }
+        } else {
+            stopHoverExpand()
+        }
+    }
+
+    private fun expandHoveredNode() {
+        if (hoverExpandRow >= 0) {
+            val path = tree.getPathForRow(hoverExpandRow)
+            if (path != null && tree.isCollapsed(path)) {
+                tree.expandPath(path)
+            }
+        }
+        hoverExpandRow = -1
+    }
+
+    private fun stopHoverExpand() {
+        hoverExpandRow = -1
+        if (hoverExpandTimer.isRunning) {
+            hoverExpandTimer.stop()
         }
     }
 
@@ -179,6 +225,7 @@ class TaskDragDropHandler(
 
         val newDropPosition = calculateDropPosition(path, location.y - rowBounds.y, rowBounds.height)
         updateDropIndicator(targetRow, newDropPosition)
+        updateHoverExpand(targetRow, path)
         dtde.acceptDrag(DnDConstants.ACTION_MOVE)
     }
 
@@ -218,15 +265,25 @@ class TaskDragDropHandler(
             return
         }
 
+        // Use the cached drop position that was shown to the user
+        val cachedPosition = dropPosition
+        val cachedRow = dropTargetRow
+
         dtde.acceptDrop(DnDConstants.ACTION_MOVE)
 
         val location = dtde.location
         val targetPath = tree.getPathForLocation(location.x, location.y)
 
-        if (targetPath == null || targetPath.pathCount <= 1) {
-            handleDropAtRoot(sourceTasks, location.x, location.y)
-        } else {
-            handleDropOnTask(sourceTasks, targetPath, location.y)
+        when {
+            cachedRow < 0 || targetPath == null || targetPath.pathCount <= 1 -> {
+                handleDropAtRoot(sourceTasks, location.x, location.y)
+            }
+            cachedPosition == DropPosition.NONE -> {
+                // Invalid drop position - do nothing
+            }
+            else -> {
+                handleDropOnTask(sourceTasks, targetPath, cachedPosition)
+            }
         }
 
         // Select the first moved task
@@ -255,7 +312,7 @@ class TaskDragDropHandler(
         return rootTasks.size
     }
 
-    private fun handleDropOnTask(sourceTasks: List<Task>, targetPath: TreePath, locationY: Int) {
+    private fun handleDropOnTask(sourceTasks: List<Task>, targetPath: TreePath, position: DropPosition) {
         val targetNode = targetPath.lastPathComponent as? CheckedTreeNode ?: return
         val targetTask = targetNode.userObject as? Task ?: return
 
@@ -263,18 +320,11 @@ class TaskDragDropHandler(
         val sourceIds = sourceTasks.map { it.id }.toSet()
         if (sourceIds.contains(targetTask.id) || sourceTasks.any { isDescendant(it, targetTask) }) return
 
-        val targetRow = tree.getRowForPath(targetPath)
-        val rowBounds = tree.getRowBounds(targetRow) ?: return
-        val dropY = locationY - rowBounds.y
-        val rowHeight = rowBounds.height
-
-        val upperThreshold = rowHeight / ChecklistConstants.DROP_ZONE_UPPER_DIVISOR
-        val lowerThreshold = (rowHeight * ChecklistConstants.DROP_ZONE_LOWER_FRACTION).toInt()
-
-        when {
-            dropY < upperThreshold -> moveTasksAsSibling(sourceTasks, targetTask, targetPath, 0)
-            dropY > lowerThreshold -> moveTasksAsSibling(sourceTasks, targetTask, targetPath, 1)
-            targetTask.canAddSubtask() -> moveTasksAsChild(sourceTasks, targetTask)
+        when (position) {
+            DropPosition.ABOVE -> moveTasksAsSibling(sourceTasks, targetTask, targetPath, 0)
+            DropPosition.BELOW -> moveTasksAsSibling(sourceTasks, targetTask, targetPath, 1)
+            DropPosition.AS_CHILD -> moveTasksAsChild(sourceTasks, targetTask)
+            DropPosition.NONE -> { /* Should not happen, handled in handleDrop */ }
         }
     }
 
