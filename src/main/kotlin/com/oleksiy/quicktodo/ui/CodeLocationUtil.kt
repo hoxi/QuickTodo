@@ -13,8 +13,8 @@ import java.io.File
 object CodeLocationUtil {
 
     /**
-     * Captures the current cursor position from the active editor.
-     * @return CodeLocation with relative path, or null if no editor is open
+     * Captures the current cursor position or selection from the active editor.
+     * @return CodeLocation with relative path and position/selection, or null if no editor is open
      */
     fun captureCurrentLocation(project: Project): CodeLocation? {
         val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return null
@@ -31,18 +31,35 @@ object CodeLocationUtil {
             absolutePath
         }
 
+        val selectionModel = editor.selectionModel
         val caretModel = editor.caretModel
-        val logicalPosition = caretModel.logicalPosition
 
-        return CodeLocation(
-            relativePath = relativePath,
-            line = logicalPosition.line,
-            column = logicalPosition.column
-        )
+        return if (selectionModel.hasSelection()) {
+            // Capture selection range
+            val startPosition = editor.offsetToLogicalPosition(selectionModel.selectionStart)
+            val endPosition = editor.offsetToLogicalPosition(selectionModel.selectionEnd)
+
+            CodeLocation(
+                relativePath = relativePath,
+                line = startPosition.line,
+                column = startPosition.column,
+                endLine = endPosition.line,
+                endColumn = endPosition.column
+            )
+        } else {
+            // Capture cursor position only
+            val logicalPosition = caretModel.logicalPosition
+
+            CodeLocation(
+                relativePath = relativePath,
+                line = logicalPosition.line,
+                column = logicalPosition.column
+            )
+        }
     }
 
     /**
-     * Navigates to the specified code location.
+     * Navigates to the specified code location and restores selection if present.
      * @return true if navigation succeeded
      */
     fun navigateToLocation(project: Project, location: CodeLocation): Boolean {
@@ -64,6 +81,22 @@ object CodeLocationUtil {
             location.column
         )
 
-        return descriptor.navigateInEditor(project, true)
+        val navigated = descriptor.navigateInEditor(project, true)
+
+        // If navigation succeeded and there's a selection, restore it
+        if (navigated && location.hasSelection()) {
+            val editor = FileEditorManager.getInstance(project).selectedTextEditor
+            if (editor != null) {
+                val startOffset = editor.logicalPositionToOffset(
+                    com.intellij.openapi.editor.LogicalPosition(location.line, location.column)
+                )
+                val endOffset = editor.logicalPositionToOffset(
+                    com.intellij.openapi.editor.LogicalPosition(location.endLine, location.endColumn)
+                )
+                editor.selectionModel.setSelection(startOffset, endOffset)
+            }
+        }
+
+        return navigated
     }
 }
