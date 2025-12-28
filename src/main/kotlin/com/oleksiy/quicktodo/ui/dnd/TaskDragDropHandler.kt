@@ -9,7 +9,9 @@ import com.intellij.ui.CheckedTreeNode
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.Transferable
 import java.awt.datatransfer.UnsupportedFlavorException
+import java.awt.Rectangle
 import java.awt.dnd.*
+import javax.swing.Timer
 import javax.swing.tree.TreePath
 
 private typealias TaskList = List<Task>
@@ -36,6 +38,12 @@ class TaskDragDropHandler(
     var dropPosition: DropPosition = DropPosition.NONE
         private set
 
+    // Auto-scroll state
+    private var autoScrollDirection: Int = 0
+    private val autoScrollTimer = Timer(ChecklistConstants.AUTO_SCROLL_DELAY_MS) {
+        performAutoScroll()
+    }
+
     fun setup() {
         setupDragSource()
         setupDropTarget()
@@ -46,6 +54,46 @@ class TaskDragDropHandler(
             dropTargetRow = -1
             dropPosition = DropPosition.NONE
             tree.repaint()
+        }
+        stopAutoScroll()
+    }
+
+    private fun updateAutoScroll(locationY: Int) {
+        val visibleRect = tree.visibleRect
+        val scrollZone = ChecklistConstants.AUTO_SCROLL_ZONE_HEIGHT
+
+        autoScrollDirection = when {
+            locationY < visibleRect.y + scrollZone -> -1  // Scroll up
+            locationY > visibleRect.y + visibleRect.height - scrollZone -> 1  // Scroll down
+            else -> 0
+        }
+
+        if (autoScrollDirection != 0 && !autoScrollTimer.isRunning) {
+            autoScrollTimer.start()
+        } else if (autoScrollDirection == 0 && autoScrollTimer.isRunning) {
+            autoScrollTimer.stop()
+        }
+    }
+
+    private fun performAutoScroll() {
+        if (autoScrollDirection == 0) return
+
+        val visibleRect = tree.visibleRect
+        val scrollIncrement = ChecklistConstants.AUTO_SCROLL_INCREMENT
+        val newY = visibleRect.y + (autoScrollDirection * scrollIncrement)
+
+        tree.scrollRectToVisible(Rectangle(
+            visibleRect.x,
+            newY.coerceAtLeast(0),
+            visibleRect.width,
+            visibleRect.height
+        ))
+    }
+
+    private fun stopAutoScroll() {
+        autoScrollDirection = 0
+        if (autoScrollTimer.isRunning) {
+            autoScrollTimer.stop()
         }
     }
 
@@ -112,6 +160,8 @@ class TaskDragDropHandler(
 
     private fun handleDragOver(dtde: DropTargetDragEvent) {
         val location = dtde.location
+        updateAutoScroll(location.y)
+
         val path = tree.getPathForLocation(location.x, location.y)
 
         if (path == null) {

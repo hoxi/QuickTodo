@@ -24,4 +24,13 @@ object ChecklistConstants {
 
     /** Size of drop indicator circle at line start */
     const val DROP_INDICATOR_CIRCLE_SIZE = 6
+
+    /** Height of the auto-scroll zone at top/bottom edges (pixels) */
+    const val AUTO_SCROLL_ZONE_HEIGHT = 30
+
+    /** Scroll increment per tick during drag auto-scroll (pixels) */
+    const val AUTO_SCROLL_INCREMENT = 15
+
+    /** Delay between auto-scroll ticks (milliseconds) */
+    const val AUTO_SCROLL_DELAY_MS = 50
 }
