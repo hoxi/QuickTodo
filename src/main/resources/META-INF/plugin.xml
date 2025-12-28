@@ -13,13 +13,13 @@
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
     <description><![CDATA[
-        QuickTodo - a simple plugin for managing hierarchical tasks per project.
+        A lightweight task management plugin for organizing hierarchical tasks within your project.
         <br><br>
         <b>Features:</b>
         <ul>
-            <li>Add and remove tasks</li>
-            <li>Mark tasks as complete with checkboxes</li>
-            <li>Create subtasks up to 3 levels deep</li>
+            <li>Hierarchical subtasks up to 3 levels deep</li>
+            <li>Task priorities</li>
+            <li>Focus timer to track time spent on tasks</li>
             <li>Per-project task persistence</li>
         </ul>
     ]]></description>
