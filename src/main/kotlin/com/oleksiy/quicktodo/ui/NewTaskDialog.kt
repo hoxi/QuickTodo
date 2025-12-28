@@ -2,22 +2,23 @@ package com.oleksiy.quicktodo.ui
 
 import com.oleksiy.quicktodo.model.CodeLocation
 import com.oleksiy.quicktodo.model.Priority
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
-import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
+import java.awt.CardLayout
 import java.awt.Component
 import java.awt.Cursor
 import java.awt.Dimension
-import java.awt.FlowLayout
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.Box
+import javax.swing.BoxLayout
 import javax.swing.DefaultListCellRenderer
 import javax.swing.JButton
 import javax.swing.JComponent
@@ -36,14 +37,21 @@ class NewTaskDialog(
     private val priorityComboBox = ComboBox(Priority.entries.toTypedArray())
 
     // Location components
-    private val includeLocationCheckbox = JBCheckBox("Include current cursor position")
+    private val linkLocationButton = JButton("Link Location", AllIcons.General.Add)
     private val locationLinkLabel = JBLabel()
-    private val clearLocationButton = JButton("X")
-    private val locationPanel = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
+    private val clearLocationButton = JButton("Clear")
+
+    // Card layout to switch between "link" button and "location display"
+    private val locationCardPanel = JPanel(CardLayout())
+    private val locationDisplayPanel = JPanel()
 
     // Current location state
     private var currentLocation: CodeLocation? = initialLocation?.copy()
-    private var isUpdatingCheckbox = false
+
+    companion object {
+        private const val CARD_LINK_BUTTON = "linkButton"
+        private const val CARD_LOCATION_DISPLAY = "locationDisplay"
+    }
 
     init {
         title = dialogTitle
@@ -55,7 +63,12 @@ class NewTaskDialog(
     }
 
     private fun setupLocationComponents() {
-        // Style the link label
+        // Setup "Link Location" button
+        linkLocationButton.addActionListener {
+            captureLocation()
+        }
+
+        // Style the location link label
         locationLinkLabel.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
         locationLinkLabel.foreground = JBUI.CurrentTheme.Link.Foreground.ENABLED
         locationLinkLabel.addMouseListener(object : MouseAdapter() {
@@ -68,33 +81,32 @@ class NewTaskDialog(
             }
         })
 
-        // Style the clear button
-        clearLocationButton.preferredSize = Dimension(24, 24)
-        clearLocationButton.margin = JBUI.emptyInsets()
-        clearLocationButton.toolTipText = "Remove attached location"
+        // Setup clear button
         clearLocationButton.addActionListener {
             clearLocation()
         }
 
-        // Build location display panel
-        locationPanel.add(locationLinkLabel)
-        locationPanel.add(Box.createHorizontalStrut(4))
-        locationPanel.add(clearLocationButton)
+        // Build location display panel (shown when location is linked)
+        locationDisplayPanel.layout = BoxLayout(locationDisplayPanel, BoxLayout.X_AXIS)
+        locationDisplayPanel.add(locationLinkLabel)
+        locationDisplayPanel.add(Box.createHorizontalStrut(12))
+        locationDisplayPanel.add(clearLocationButton)
+        locationDisplayPanel.add(Box.createHorizontalGlue())
 
-        // Checkbox behavior - use SwingUtilities.invokeLater to avoid modifying state during event
-        includeLocationCheckbox.addItemListener { e ->
-            if (isUpdatingCheckbox) return@addItemListener
-            javax.swing.SwingUtilities.invokeLater {
-                if (e.stateChange == java.awt.event.ItemEvent.SELECTED) {
-                    captureLocation()
-                } else if (e.stateChange == java.awt.event.ItemEvent.DESELECTED) {
-                    currentLocation = null
-                    updateLocationDisplay()
-                }
-            }
+        // Build card panel for switching between states
+        val linkButtonPanel = JPanel(BorderLayout()).apply {
+            add(linkLocationButton, BorderLayout.WEST)
         }
 
-        // Initialize UI state based on initial location
+        locationCardPanel.add(linkButtonPanel, CARD_LINK_BUTTON)
+        locationCardPanel.add(locationDisplayPanel, CARD_LOCATION_DISPLAY)
+
+        // Set consistent height to prevent layout shift
+        val height = maxOf(linkLocationButton.preferredSize.height, clearLocationButton.preferredSize.height)
+        locationCardPanel.preferredSize = Dimension(350, height)
+        locationCardPanel.minimumSize = Dimension(0, height)
+
+        // Initialize UI state
         updateLocationDisplay()
     }
 
@@ -104,10 +116,6 @@ class NewTaskDialog(
             currentLocation = captured
             updateLocationDisplay()
         } else {
-            // No editor open - uncheck and show message
-            currentLocation = null
-            setCheckboxSelected(false)
-            updateLocationDisplay()
             com.intellij.openapi.ui.Messages.showWarningDialog(
                 project,
                 "No file is currently open in the editor. Please open a file first.",
@@ -118,49 +126,37 @@ class NewTaskDialog(
 
     private fun clearLocation() {
         currentLocation = null
-        setCheckboxSelected(false)
         updateLocationDisplay()
     }
 
-    private fun setCheckboxSelected(selected: Boolean) {
-        isUpdatingCheckbox = true
-        try {
-            includeLocationCheckbox.isSelected = selected
-        } finally {
-            isUpdatingCheckbox = false
-        }
-    }
-
     private fun updateLocationDisplay() {
+        val cardLayout = locationCardPanel.layout as CardLayout
         val hasLocation = currentLocation?.isValid() == true
 
-        locationPanel.isVisible = hasLocation
-
         if (hasLocation) {
-            locationLinkLabel.text = "<html><u>${currentLocation!!.toDisplayString()}</u></html>"
-            setCheckboxSelected(true)
+            // Show location display
+            val loc = currentLocation!!
+            val displayText = if (loc.hasSelection() && loc.endLine > loc.line) {
+                "${loc.relativePath}:${loc.line + 1}-${loc.endLine + 1}"
+            } else {
+                "${loc.relativePath}:${loc.line + 1}"
+            }
+            locationLinkLabel.text = "<html><u>$displayText</u></html>"
+            cardLayout.show(locationCardPanel, CARD_LOCATION_DISPLAY)
         } else {
             locationLinkLabel.text = ""
+            cardLayout.show(locationCardPanel, CARD_LINK_BUTTON)
         }
-
-        // Revalidate to update layout
-        locationPanel.revalidate()
-        locationPanel.repaint()
     }
 
     override fun createCenterPanel(): JComponent {
-        nameField.preferredSize = Dimension(300, nameField.preferredSize.height)
-
-        // Create location row with checkbox and link/clear
-        val locationRowPanel = JPanel(BorderLayout()).apply {
-            add(includeLocationCheckbox, BorderLayout.WEST)
-            add(locationPanel, BorderLayout.CENTER)
-        }
+        nameField.preferredSize = Dimension(350, nameField.preferredSize.height)
 
         return FormBuilder.createFormBuilder()
             .addLabeledComponent("Name:", nameField)
             .addLabeledComponent("Priority:", priorityComboBox)
-            .addComponent(locationRowPanel)
+            .addVerticalGap(8)
+            .addLabeledComponent("Location:", locationCardPanel)
             .panel
     }
 
