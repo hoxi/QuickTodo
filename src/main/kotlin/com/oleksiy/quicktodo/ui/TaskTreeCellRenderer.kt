@@ -124,13 +124,12 @@ class TaskTreeCellRenderer(
             )
         }
 
-        // Set flag icon based on priority
+        // Set flag icon based on priority (on the left, before text)
         val priority = task.getPriorityEnum()
         if (priority != Priority.NONE) {
             val icon = QuickTodoIcons.getIconForPriority(priority)
             if (icon != null) {
                 textRenderer.icon = icon
-                textRenderer.isIconOnTheRight = true
             }
         }
 
