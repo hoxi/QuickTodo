@@ -32,7 +32,7 @@ interface ChecklistActionCallback {
  */
 class AddSubtaskAction(
     private val callback: ChecklistActionCallback
-) : AnAction("Add Subtask", "Add a subtask to selected task", AllIcons.General.Add) {
+) : AnAction("Add Subtask", "Add a subtask to selected task", QuickTodoIcons.AddSubtask) {
 
     override fun actionPerformed(e: AnActionEvent) {
         callback.addSubtask()

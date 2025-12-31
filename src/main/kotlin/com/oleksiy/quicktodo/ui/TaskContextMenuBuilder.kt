@@ -75,7 +75,7 @@ class TaskContextMenuBuilder(
 
         // Add Subtask action (only if nesting level allows)
         if (task.canAddSubtask()) {
-            actionGroup.add(object : AnAction("Add Subtask", "Add a subtask to this task", AllIcons.General.Add) {
+            actionGroup.add(object : AnAction("Add Subtask", "Add a subtask to this task", QuickTodoIcons.AddSubtask) {
                 override fun actionPerformed(e: AnActionEvent) = onAddSubtask(task)
             })
         }
