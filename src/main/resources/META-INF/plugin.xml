@@ -45,13 +45,14 @@
     </extensions>
 
     <actions>
-        <action id="com.oleksiy.quicktodo.ShowChecklist"
+        <action id="ActivateQuickTodoToolWindow"
                 class="com.oleksiy.quicktodo.action.ShowChecklistAction"
-                text="Show QuickTodo"
+                text="QuickTodo"
                 description="Open QuickTodo tool window">
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt C"/>
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="ActivateToolWindowActions"/>
         </action>
+
         <action id="com.oleksiy.quicktodo.AddTask"
                 class="com.oleksiy.quicktodo.action.AddTaskAction"
                 text="Add Task"
