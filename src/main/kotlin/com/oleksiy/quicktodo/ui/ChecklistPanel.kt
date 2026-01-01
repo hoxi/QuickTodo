@@ -237,6 +237,12 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
                     if (handleLocationClick(e)) {
                         return
                     }
+                    // Toggle selection if task was already selected before the click
+                    // (pathWasSelectedBeforePress is set in TaskTree.processMouseEvent before selection changes)
+                    if (tree.pathWasSelectedBeforePress) {
+                        tree.clearSelection()
+                        return
+                    }
                 }
                 if (e.clickCount == 2 && e.button == MouseEvent.BUTTON1) {
                     handleDoubleClick(e)
@@ -545,6 +551,45 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
     // ============ Task Operations ============
 
     private fun addTask() {
+        val selectedTask = getSelectedTask()
+
+        if (selectedTask != null) {
+            if (selectedTask.canAddSubtask()) {
+                // Add as subtask - keep parent selected for quick multi-add
+                treeManager.ensureTaskExpanded(selectedTask.id)
+                val dialog = NewTaskDialog(project, "New Subtask")
+                if (dialog.showAndGet()) {
+                    val text = dialog.getTaskText()
+                    val priority = dialog.getSelectedPriority()
+                    val location = dialog.getCodeLocation()
+                    if (text.isNotBlank()) {
+                        val subtask = taskService.addSubtask(selectedTask.id, text, priority)
+                        if (subtask != null) {
+                            location?.let { taskService.setTaskLocation(subtask.id, it) }
+                            // Re-select parent after tree refresh (which happens via invokeLater)
+                            SwingUtilities.invokeLater {
+                                treeManager.selectTaskById(selectedTask.id)
+                            }
+                        }
+                    }
+                }
+                return
+            } else {
+                // Max nesting reached - warn user and offer to add as root
+                val result = Messages.showYesNoDialog(
+                    project,
+                    "Maximum nesting level (3) reached. Add as a new root task instead?",
+                    "Cannot Add Subtask",
+                    Messages.getQuestionIcon()
+                )
+                if (result != Messages.YES) {
+                    return
+                }
+                // Fall through to add as root task
+            }
+        }
+
+        // Add as root task - don't select it (allows quick multi-add)
         val dialog = NewTaskDialog(project)
         if (dialog.showAndGet()) {
             val text = dialog.getTaskText()
@@ -553,7 +598,7 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
             if (text.isNotBlank()) {
                 val task = taskService.addTask(text, priority)
                 location?.let { taskService.setTaskLocation(task.id, it) }
-                treeManager.selectTaskById(task.id)
+                // No selection change - allows adding multiple tasks quickly
             }
         }
     }

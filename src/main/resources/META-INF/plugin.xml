@@ -50,6 +50,8 @@
                 text="QuickTodo"
                 description="Open QuickTodo tool window">
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt C"/>
+            <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta alt C" replace-all="true"/>
+            <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta alt C" replace-all="true"/>
             <add-to-group group-id="ActivateToolWindowActions"/>
         </action>
 
@@ -57,7 +59,9 @@
                 class="com.oleksiy.quicktodo.action.AddTaskAction"
                 text="Add Task"
                 description="Add a new task to QuickTodo">
-            <keyboard-shortcut keymap="$default" first-keystroke="meta shift T"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift T"/>
+            <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift T" replace-all="true"/>
+            <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta shift T" replace-all="true"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
     </actions>

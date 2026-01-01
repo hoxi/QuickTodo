@@ -1,7 +1,7 @@
 package com.oleksiy.quicktodo.ui
 
-import com.oleksiy.quicktodo.model.Task
 import com.intellij.ui.CheckedTreeNode
+import com.oleksiy.quicktodo.model.Task
 import java.awt.event.ActionEvent
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
@@ -9,7 +9,6 @@ import javax.swing.AbstractAction
 import javax.swing.JComponent
 import javax.swing.JTree
 import javax.swing.KeyStroke
-import javax.swing.tree.TreePath
 
 /**
  * A custom JTree for displaying tasks with checkboxes.
@@ -22,6 +21,10 @@ open class TaskTree(
 
     // Track checkbox press to handle slight mouse movement between press and click
     private var checkboxPressedOnTask: Task? = null
+
+    // Track if the clicked path was selected before mouse press (for toggle selection)
+    var pathWasSelectedBeforePress = false
+        private set
 
     init {
         setupKeyboardToggle()
@@ -37,6 +40,17 @@ open class TaskTree(
         if (e.button == MouseEvent.BUTTON1) {
             when (e.id) {
                 MouseEvent.MOUSE_PRESSED -> {
+                    // Capture selection state BEFORE super.processMouseEvent changes it
+                    if (!isOverCheckbox(e.x, e.y)) {
+                        // Use getClosestRowForLocation to detect row even on empty space
+                        val row = getClosestRowForLocation(e.x, e.y)
+                        val rowBounds = if (row >= 0) getRowBounds(row) else null
+                        // Verify click is within actual row bounds
+                        val isWithinRowBounds = rowBounds != null &&
+                            e.y >= rowBounds.y && e.y < rowBounds.y + rowBounds.height
+                        pathWasSelectedBeforePress = isWithinRowBounds && isRowSelected(row)
+                    }
+
                     if (isOverCheckbox(e.x, e.y)) {
                         // Remember which task's checkbox was pressed
                         checkboxPressedOnTask = getTaskAtLocation(e.x, e.y)
