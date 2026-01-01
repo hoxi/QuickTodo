@@ -93,6 +93,36 @@ class TaskService : PersistentStateComponent<TaskService.State>, CommandExecutor
         return removed
     }
 
+    fun removeTasks(taskIds: List<String>): Boolean {
+        if (taskIds.isEmpty()) return false
+
+        // Filter out descendants of tasks being deleted (avoid double removal)
+        val filtered = taskIds.filter { id ->
+            taskIds.none { otherId ->
+                otherId != id && isAncestorOf(otherId, id)
+            }
+        }
+
+        // Capture snapshots before deletion
+        val removedInfos = filtered.mapNotNull { taskId ->
+            val task = findTask(taskId) ?: return@mapNotNull null
+            val parentId = findParentId(taskId)
+            val index = getTaskIndex(taskId, parentId)
+            RemoveMultipleTasksCommand.RemovedTaskInfo(
+                TaskSnapshot.deepCopy(task), parentId, index
+            )
+        }
+
+        if (removedInfos.isEmpty()) return false
+
+        // Remove all tasks
+        removedInfos.forEach { removeTaskInternal(it.taskSnapshot.id) }
+
+        undoRedoManager.recordCommand(RemoveMultipleTasksCommand(removedInfos))
+        notifyListeners()
+        return true
+    }
+
     fun setTaskCompletion(taskId: String, completed: Boolean): Boolean {
         val task = findTask(taskId) ?: return false
 

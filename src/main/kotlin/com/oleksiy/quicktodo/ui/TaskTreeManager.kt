@@ -149,6 +149,17 @@ class TaskTreeManager(
     }
 
     /**
+     * Scrolls to make a task visible without changing selection.
+     */
+    fun scrollToTaskById(taskId: String) {
+        val root = tree.model.root as? CheckedTreeNode ?: return
+        val path = findPathToTask(root, taskId)
+        if (path != null) {
+            tree.scrollPathToVisible(path)
+        }
+    }
+
+    /**
      * Finds the TreePath to a task by its ID.
      */
     fun findPathToTask(node: CheckedTreeNode, taskId: String): TreePath? {

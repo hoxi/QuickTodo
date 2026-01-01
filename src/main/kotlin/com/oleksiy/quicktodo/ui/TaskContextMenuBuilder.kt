@@ -128,10 +128,15 @@ class TaskContextMenuBuilder(
         })
 
         // Delete action
-        actionGroup.add(object : AnAction("Delete Task", "Delete this task", AllIcons.General.Remove) {
+        val deleteLabel = if (allSelectedTasks.size > 1) "Delete ${allSelectedTasks.size} Tasks" else "Delete Task"
+        actionGroup.add(object : AnAction(deleteLabel, "Delete selected task(s)", AllIcons.General.Remove) {
             override fun actionPerformed(e: AnActionEvent) {
-                focusService.onTaskDeleted(task.id)
-                taskService.removeTask(task.id)
+                allSelectedTasks.forEach { focusService.onTaskDeleted(it.id) }
+                if (allSelectedTasks.size == 1) {
+                    taskService.removeTask(task.id)
+                } else {
+                    taskService.removeTasks(allSelectedTasks.map { it.id })
+                }
             }
         })
 

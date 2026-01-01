@@ -82,6 +82,40 @@ data class RemoveTaskCommand(
 }
 
 /**
+ * Command for removing multiple tasks at once.
+ * Captures snapshots of all removed tasks with their positions.
+ */
+data class RemoveMultipleTasksCommand(
+    val removedTasks: List<RemovedTaskInfo>
+) : Command {
+
+    data class RemovedTaskInfo(
+        val taskSnapshot: Task,
+        val parentId: String?,
+        val index: Int
+    )
+
+    override val description: String
+        get() = "Delete ${removedTasks.size} tasks"
+
+    override fun undo(executor: CommandExecutor) {
+        // Restore in original order (by index) to maintain correct positions
+        // Sort by parentId (nulls first for root), then by index
+        removedTasks
+            .sortedWith(compareBy({ it.parentId != null }, { it.index }))
+            .forEach { info ->
+                executor.restoreTask(info.taskSnapshot, info.parentId, info.index)
+            }
+    }
+
+    override fun redo(executor: CommandExecutor) {
+        removedTasks.forEach { info ->
+            executor.removeTaskWithoutUndo(info.taskSnapshot.id)
+        }
+    }
+}
+
+/**
  * Command for editing task text.
  */
 data class EditTaskTextCommand(

@@ -52,6 +52,7 @@ class FocusBarPanel(
             timerLabel.alignmentY = CENTER_ALIGNMENT
             pauseResumeButton.alignmentY = CENTER_ALIGNMENT
             stopButton.alignmentY = CENTER_ALIGNMENT
+            add(Box.createHorizontalStrut(12))
             add(timerLabel)
             add(Box.createHorizontalStrut(8))
             add(pauseResumeButton)
@@ -120,6 +121,7 @@ class FocusBarPanel(
         isVisible = true
 
         focusLabel.text = task.text
+        focusLabel.toolTipText = task.text
         focusLabel.icon = QuickTodoIcons.Focus
 
         updateTimerDisplay()

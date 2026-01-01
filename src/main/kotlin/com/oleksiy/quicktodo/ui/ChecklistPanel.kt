@@ -566,9 +566,9 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
                         val subtask = taskService.addSubtask(selectedTask.id, text, priority)
                         if (subtask != null) {
                             location?.let { taskService.setTaskLocation(subtask.id, it) }
-                            // Re-select parent after tree refresh (which happens via invokeLater)
                             SwingUtilities.invokeLater {
                                 treeManager.selectTaskById(selectedTask.id)
+                                treeManager.scrollToTaskById(subtask.id)
                             }
                         }
                     }
@@ -598,15 +598,26 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
             if (text.isNotBlank()) {
                 val task = taskService.addTask(text, priority)
                 location?.let { taskService.setTaskLocation(task.id, it) }
-                // No selection change - allows adding multiple tasks quickly
+                // Scroll to newly added task without selecting it
+                SwingUtilities.invokeLater {
+                    treeManager.scrollToTaskById(task.id)
+                }
             }
         }
     }
 
     private fun removeSelectedTask() {
-        val selectedTask = getSelectedTask() ?: return
-        focusService.onTaskDeleted(selectedTask.id)
-        taskService.removeTask(selectedTask.id)
+        val selectedTasks = getSelectedTasks()
+        if (selectedTasks.isEmpty()) return
+
+        // Stop focus timer for all deleted tasks
+        selectedTasks.forEach { focusService.onTaskDeleted(it.id) }
+
+        if (selectedTasks.size == 1) {
+            taskService.removeTask(selectedTasks.first().id)
+        } else {
+            taskService.removeTasks(selectedTasks.map { it.id })
+        }
     }
 
     private fun editSelectedTask() {
