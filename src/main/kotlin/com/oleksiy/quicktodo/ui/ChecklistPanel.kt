@@ -13,13 +13,16 @@ import com.oleksiy.quicktodo.model.Task
 import com.oleksiy.quicktodo.service.FocusService
 import com.oleksiy.quicktodo.service.TaskService
 import com.oleksiy.quicktodo.ui.dnd.TaskDragDropHandler
+import com.oleksiy.quicktodo.ui.handler.AddTaskHandler
+import com.oleksiy.quicktodo.ui.handler.ChecklistKeyboardHandler
+import com.oleksiy.quicktodo.ui.handler.ChecklistMouseHandler
+import com.oleksiy.quicktodo.ui.handler.EditTaskHandler
+import com.oleksiy.quicktodo.ui.handler.RemoveTaskHandler
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.Separator
-import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
-import java.awt.datatransfer.StringSelection
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.CheckedTreeNode
 import com.intellij.ui.ToolbarDecorator
@@ -27,17 +30,10 @@ import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Graphics
 import java.awt.Graphics2D
-import java.awt.event.ActionEvent
-import java.awt.event.KeyEvent
-import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
-import java.awt.event.MouseMotionAdapter
-import javax.swing.AbstractAction
 import javax.swing.DropMode
-import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JTree
-import javax.swing.KeyStroke
 import javax.swing.SwingUtilities
 
 /**
@@ -59,6 +55,11 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
     private lateinit var treeManager: TaskTreeManager
     private lateinit var dragDropHandler: TaskDragDropHandler
     private lateinit var contextMenuBuilder: TaskContextMenuBuilder
+    private lateinit var mouseHandler: ChecklistMouseHandler
+    private lateinit var keyboardHandler: ChecklistKeyboardHandler
+    private lateinit var addTaskHandler: AddTaskHandler
+    private lateinit var editTaskHandler: EditTaskHandler
+    private lateinit var removeTaskHandler: RemoveTaskHandler
     private lateinit var focusBarPanel: FocusBarPanel
     private val mainPanel = JPanel(BorderLayout())
     private var taskListener: (() -> Unit)? = null
@@ -85,11 +86,43 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
             project,
             taskService,
             focusService,
-            onEditTask = { task -> editTask(task) },
-            onAddSubtask = { task -> addSubtaskToTask(task) }
+            onEditTask = { task -> editTaskHandler.editTask(task) },
+            onAddSubtask = { task -> addTaskHandler.addSubtaskToTask(task) }
+        )
+        mouseHandler = ChecklistMouseHandler(
+            project,
+            tree,
+            renderer,
+            contextMenuBuilder,
+            onEditTask = { task -> editTaskHandler.editTask(task) },
+            getSelectedTasks = { getSelectedTasks() }
+        )
+        keyboardHandler = ChecklistKeyboardHandler(
+            tree,
+            onUndo = { taskService.undo() },
+            onRedo = { taskService.redo() },
+            getSelectedTasks = { getSelectedTasks() }
+        )
+        addTaskHandler = AddTaskHandler(
+            project,
+            taskService,
+            treeManager,
+            getSelectedTask = { getSelectedTask() }
+        )
+        editTaskHandler = EditTaskHandler(
+            project,
+            taskService,
+            getSelectedTask = { getSelectedTask() }
+        )
+        removeTaskHandler = RemoveTaskHandler(
+            taskService,
+            focusService,
+            getSelectedTasks = { getSelectedTasks() }
         )
 
         dragDropHandler.setup()
+        mouseHandler.setup()
+        keyboardHandler.setup()
         treeManager.refreshTree()
 
         val toolbarDecorator = createToolbarDecorator()
@@ -104,9 +137,9 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
 
     private fun createToolbarDecorator(): ToolbarDecorator {
         return ToolbarDecorator.createDecorator(tree)
-            .setAddAction { addTask() }
-            .setRemoveAction { removeSelectedTask() }
-            .setEditAction { editSelectedTask() }
+            .setAddAction { addTaskHandler.addTask() }
+            .setRemoveAction { removeTaskHandler.removeSelectedTasks() }
+            .setEditAction { editTaskHandler.editSelectedTask() }
             .setEditActionUpdater { getSelectedTask() != null }
             .addExtraActions(
                 AddSubtaskAction(this),
@@ -171,11 +204,12 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
             }
 
             override fun getToolTipText(event: MouseEvent): String? {
+                if (!::mouseHandler.isInitialized) return null
                 val path = getPathForRowAt(event.x, event.y) ?: return null
                 val node = path.lastPathComponent as? CheckedTreeNode ?: return null
                 val task = node.userObject as? Task ?: return null
 
-                if (task.hasCodeLocation() && isMouseOverLocationLink(event)) {
+                if (task.hasCodeLocation() && mouseHandler.isMouseOverLocationLink(event)) {
                     return task.codeLocation?.relativePath
                 }
                 return null
@@ -189,8 +223,6 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
         // Enable tooltips
         javax.swing.ToolTipManager.sharedInstance().registerComponent(taskTree)
 
-        setupMouseListeners(taskTree)
-        setupKeyboardShortcuts(taskTree)
         setupExpansionListener(taskTree)
 
         taskTree.dragEnabled = true
@@ -225,200 +257,6 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
         }
     }
 
-    private fun setupMouseListeners(tree: TaskTree) {
-        tree.addMouseListener(object : MouseAdapter() {
-            override fun mouseClicked(e: MouseEvent) {
-                // Skip if click was on checkbox (handled by TaskTree)
-                if (tree.isOverCheckbox(e.x, e.y)) {
-                    return
-                }
-
-                if (e.clickCount == 1 && e.button == MouseEvent.BUTTON1) {
-                    if (handleLocationClick(e)) {
-                        return
-                    }
-                    // Toggle selection if task was already selected before the click
-                    // (pathWasSelectedBeforePress is set in TaskTree.processMouseEvent before selection changes)
-                    if (tree.pathWasSelectedBeforePress) {
-                        tree.clearSelection()
-                        return
-                    }
-                }
-                if (e.clickCount == 2 && e.button == MouseEvent.BUTTON1) {
-                    handleDoubleClick(e)
-                }
-            }
-
-            override fun mousePressed(e: MouseEvent) = maybeShowContextMenu(e)
-            override fun mouseReleased(e: MouseEvent) = maybeShowContextMenu(e)
-        })
-
-        // Mouse motion listener for hand cursor on location links and hover highlight
-        tree.addMouseMotionListener(object : MouseMotionAdapter() {
-            override fun mouseMoved(e: MouseEvent) {
-                val isOverLink = isMouseOverLocationLink(e)
-                tree.cursor = if (isOverLink) {
-                    java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR)
-                } else {
-                    java.awt.Cursor.getDefaultCursor()
-                }
-
-                // Update hovered row for highlight
-                val newHoveredRow = tree.getRowForLocation(e.x, e.y)
-                if (renderer.hoveredRow != newHoveredRow) {
-                    renderer.hoveredRow = newHoveredRow
-                    tree.repaint()
-                }
-            }
-        })
-
-        // Clear hover when mouse exits
-        tree.addMouseListener(object : MouseAdapter() {
-            override fun mouseExited(e: MouseEvent) {
-                if (renderer.hoveredRow != -1) {
-                    renderer.hoveredRow = -1
-                    tree.repaint()
-                }
-            }
-        })
-    }
-
-    private fun handleLocationClick(e: MouseEvent): Boolean {
-        val path = tree.getPathForRowAt(e.x, e.y) ?: return false
-        val node = path.lastPathComponent as? CheckedTreeNode ?: return false
-        val task = node.userObject as? Task ?: return false
-
-        if (!task.hasCodeLocation()) return false
-
-        val row = tree.getRowForPath(path)
-        val rowBounds = tree.getRowBounds(row) ?: return false
-
-        // Configure renderer for this cell to get correct bounds
-        tree.cellRenderer.getTreeCellRendererComponent(
-            tree, node, tree.isRowSelected(row), tree.isExpanded(row),
-            tree.model.isLeaf(node), row, tree.hasFocus()
-        )
-
-        if (renderer.linkText.isEmpty()) return false
-
-        // Calculate click position relative to text start
-        val textStartX = rowBounds.x + ChecklistConstants.CHECKBOX_WIDTH + 4
-        val clickRelativeX = e.x - textStartX
-
-        // Use actual string width for accurate positioning
-        val fm = tree.getFontMetrics(tree.font)
-        val locationStartX = fm.stringWidth(renderer.textBeforeLink)
-        val locationEndX = locationStartX + fm.stringWidth(renderer.linkText)
-
-        if (clickRelativeX >= locationStartX && clickRelativeX <= locationEndX) {
-            task.codeLocation?.let { location ->
-                CodeLocationUtil.navigateToLocation(project, location)
-            }
-            return true
-        }
-
-        return false
-    }
-
-    private fun isMouseOverLocationLink(e: MouseEvent): Boolean {
-        val path = tree.getPathForRowAt(e.x, e.y) ?: return false
-        val node = path.lastPathComponent as? CheckedTreeNode ?: return false
-        val task = node.userObject as? Task ?: return false
-
-        if (!task.hasCodeLocation()) return false
-
-        val row = tree.getRowForPath(path)
-        val rowBounds = tree.getRowBounds(row) ?: return false
-
-        tree.cellRenderer.getTreeCellRendererComponent(
-            tree, node, tree.isRowSelected(row), tree.isExpanded(row),
-            tree.model.isLeaf(node), row, tree.hasFocus()
-        )
-
-        if (renderer.linkText.isEmpty()) return false
-
-        val textStartX = rowBounds.x + ChecklistConstants.CHECKBOX_WIDTH + 4
-        val clickRelativeX = e.x - textStartX
-
-        val fm = tree.getFontMetrics(tree.font)
-        val locationStartX = fm.stringWidth(renderer.textBeforeLink)
-        val locationEndX = locationStartX + fm.stringWidth(renderer.linkText)
-
-        return clickRelativeX >= locationStartX && clickRelativeX <= locationEndX
-    }
-
-    private fun handleDoubleClick(e: MouseEvent) {
-        val path = tree.getPathForRowAt(e.x, e.y) ?: return
-        val node = path.lastPathComponent as? CheckedTreeNode ?: return
-        val task = node.userObject as? Task ?: return
-
-        val row = tree.getRowForPath(path)
-        val rowBounds = tree.getRowBounds(row) ?: return
-
-        // Ignore clicks on expand/collapse arrow (left of rowBounds.x) or checkbox
-        if (e.x < rowBounds.x) return
-        val clickedOnCheckbox = e.x <= rowBounds.x + ChecklistConstants.CHECKBOX_WIDTH
-
-        if (!clickedOnCheckbox) {
-            editTask(task)
-        }
-    }
-
-    private fun maybeShowContextMenu(e: MouseEvent) {
-        if (!e.isPopupTrigger) return
-
-        val path = tree.getPathForRowAt(e.x, e.y) ?: return
-        val node = path.lastPathComponent as? CheckedTreeNode ?: return
-        val task = node.userObject as? Task ?: return
-
-        // If clicked task is not in current selection, select only that task
-        // Otherwise keep multi-selection for copy operation
-        if (!tree.isPathSelected(path)) {
-            tree.selectionPath = path
-        }
-        val allSelectedTasks = getSelectedTasks()
-        contextMenuBuilder.buildContextMenu(task, allSelectedTasks).show(tree, e.x, e.y)
-    }
-
-    private fun setupKeyboardShortcuts(tree: JTree) {
-        val undoAction = object : AbstractAction() {
-            override fun actionPerformed(e: ActionEvent?) {
-                taskService.undo()
-            }
-        }
-        val redoAction = object : AbstractAction() {
-            override fun actionPerformed(e: ActionEvent?) {
-                taskService.redo()
-            }
-        }
-        val copyAction = object : AbstractAction() {
-            override fun actionPerformed(e: ActionEvent?) {
-                val tasks = getSelectedTasks()
-                if (tasks.isEmpty()) return
-                val text = tasks.joinToString("\n") { it.text }
-                CopyPasteManager.getInstance().setContents(StringSelection(text))
-            }
-        }
-        tree.getInputMap(JComponent.WHEN_FOCUSED).apply {
-            // Undo: Ctrl+Z (Windows/Linux) or Cmd+Z (macOS)
-            put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_DOWN_MASK), "undoTask")
-            put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.META_DOWN_MASK), "undoTask")
-            // Redo: Ctrl+Shift+Z (Windows/Linux) or Cmd+Shift+Z (macOS)
-            put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_DOWN_MASK or KeyEvent.SHIFT_DOWN_MASK), "redoTask")
-            put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.META_DOWN_MASK or KeyEvent.SHIFT_DOWN_MASK), "redoTask")
-            // Also Ctrl+Y for redo on Windows/Linux
-            put(KeyStroke.getKeyStroke(KeyEvent.VK_Y, KeyEvent.CTRL_DOWN_MASK), "redoTask")
-            // Copy
-            put(KeyStroke.getKeyStroke(KeyEvent.VK_C, KeyEvent.CTRL_DOWN_MASK), "copyTaskText")
-            put(KeyStroke.getKeyStroke(KeyEvent.VK_C, KeyEvent.META_DOWN_MASK), "copyTaskText")
-        }
-        tree.actionMap.apply {
-            put("undoTask", undoAction)
-            put("redoTask", redoAction)
-            put("copyTaskText", copyAction)
-        }
-    }
-
     private fun setupExpansionListener(tree: JTree) {
         tree.addTreeExpansionListener(object : javax.swing.event.TreeExpansionListener {
             override fun treeExpanded(event: javax.swing.event.TreeExpansionEvent) {
@@ -448,37 +286,8 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
         } ?: emptyList()
     }
 
-    private fun addSubtaskToTask(task: Task) {
-        treeManager.selectTaskById(task.id)
-        addSubtask()
-    }
-
     override fun addSubtask() {
-        val selectedTask = getSelectedTask() ?: return
-
-        if (!selectedTask.canAddSubtask()) {
-            Messages.showWarningDialog(
-                project,
-                "Maximum nesting level (3) reached. Cannot add more subtasks.",
-                "Cannot Add Subtask"
-            )
-            return
-        }
-
-        val dialog = NewTaskDialog(project, "New Subtask")
-        if (dialog.showAndGet()) {
-            val text = dialog.getTaskText()
-            val priority = dialog.getSelectedPriority()
-            val location = dialog.getCodeLocation()
-            if (text.isNotBlank()) {
-                treeManager.ensureTaskExpanded(selectedTask.id)
-                val subtask = taskService.addSubtask(selectedTask.id, text, priority)
-                if (subtask != null) {
-                    location?.let { taskService.setTaskLocation(subtask.id, it) }
-                    treeManager.selectTaskById(subtask.id)
-                }
-            }
-        }
+        addTaskHandler.addSubtask()
     }
 
     override fun canMoveSelectedTask(direction: Int): Boolean {
@@ -550,110 +359,6 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
 
     override fun toggleHideCompleted() {
         taskService.setHideCompleted(!taskService.isHideCompleted())
-    }
-
-    // ============ Task Operations ============
-
-    private fun addTask() {
-        val selectedTask = getSelectedTask()
-
-        if (selectedTask != null) {
-            if (selectedTask.canAddSubtask()) {
-                // Add as subtask - keep parent selected for quick multi-add
-                treeManager.ensureTaskExpanded(selectedTask.id)
-                val dialog = NewTaskDialog(project, "New Subtask")
-                if (dialog.showAndGet()) {
-                    val text = dialog.getTaskText()
-                    val priority = dialog.getSelectedPriority()
-                    val location = dialog.getCodeLocation()
-                    if (text.isNotBlank()) {
-                        val subtask = taskService.addSubtask(selectedTask.id, text, priority)
-                        if (subtask != null) {
-                            location?.let { taskService.setTaskLocation(subtask.id, it) }
-                            SwingUtilities.invokeLater {
-                                treeManager.selectTaskById(selectedTask.id)
-                                treeManager.scrollToTaskById(subtask.id)
-                            }
-                        }
-                    }
-                }
-                return
-            } else {
-                // Max nesting reached - warn user and offer to add as root
-                val result = Messages.showYesNoDialog(
-                    project,
-                    "Maximum nesting level (3) reached. Add as a new root task instead?",
-                    "Cannot Add Subtask",
-                    Messages.getQuestionIcon()
-                )
-                if (result != Messages.YES) {
-                    return
-                }
-                // Fall through to add as root task
-            }
-        }
-
-        // Add as root task - don't select it (allows quick multi-add)
-        val dialog = NewTaskDialog(project)
-        if (dialog.showAndGet()) {
-            val text = dialog.getTaskText()
-            val priority = dialog.getSelectedPriority()
-            val location = dialog.getCodeLocation()
-            if (text.isNotBlank()) {
-                val task = taskService.addTask(text, priority)
-                location?.let { taskService.setTaskLocation(task.id, it) }
-                // Scroll to newly added task without selecting it
-                SwingUtilities.invokeLater {
-                    treeManager.scrollToTaskById(task.id)
-                }
-            }
-        }
-    }
-
-    private fun removeSelectedTask() {
-        val selectedTasks = getSelectedTasks()
-        if (selectedTasks.isEmpty()) return
-
-        // Stop focus timer for all deleted tasks
-        selectedTasks.forEach { focusService.onTaskDeleted(it.id) }
-
-        if (selectedTasks.size == 1) {
-            taskService.removeTask(selectedTasks.first().id)
-        } else {
-            taskService.removeTasks(selectedTasks.map { it.id })
-        }
-    }
-
-    private fun editSelectedTask() {
-        val selectedTask = getSelectedTask() ?: return
-        editTask(selectedTask)
-    }
-
-    private fun editTask(task: Task) {
-        val dialog = NewTaskDialog(
-            project,
-            dialogTitle = "Edit Task",
-            initialText = task.text,
-            initialPriority = task.getPriorityEnum(),
-            initialLocation = task.codeLocation
-        )
-        if (dialog.showAndGet()) {
-            val newText = dialog.getTaskText()
-            val newPriority = dialog.getSelectedPriority()
-            val newLocation = dialog.getCodeLocation()
-            if (newText.isNotBlank()) {
-                if (newText != task.text) {
-                    taskService.updateTaskText(task.id, newText)
-                }
-                if (newPriority != task.getPriorityEnum()) {
-                    taskService.setTaskPriority(task.id, newPriority)
-                }
-                // Update location (handles add, update, and remove)
-                if (newLocation != task.codeLocation) {
-                    taskService.setTaskLocation(task.id, newLocation)
-                }
-            }
-        }
     }
 
     // ============ Lifecycle ============
