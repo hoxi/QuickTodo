@@ -1,7 +1,5 @@
 package com.oleksiy.quicktodo.undo
 
-import java.util.concurrent.CopyOnWriteArrayList
-
 /**
  * Manages undo/redo stacks for the QuickTodo plugin.
  * Owned by TaskService to maintain tight coupling with task state.
@@ -11,11 +9,6 @@ class UndoRedoManager(
 ) {
     private val undoStack = ArrayDeque<Command>()
     private val redoStack = ArrayDeque<Command>()
-    private val listeners = CopyOnWriteArrayList<UndoRedoListener>()
-
-    interface UndoRedoListener {
-        fun onUndoRedoStateChanged()
-    }
 
     /**
      * Records a new command and clears the redo stack.
@@ -31,8 +24,6 @@ class UndoRedoManager(
 
         // Clear redo stack when new action is performed
         redoStack.clear()
-
-        notifyListeners()
     }
 
     /**
@@ -43,7 +34,6 @@ class UndoRedoManager(
         val command = undoStack.removeLastOrNull() ?: return false
         command.undo(executor)
         redoStack.addLast(command)
-        notifyListeners()
         return true
     }
 
@@ -55,7 +45,6 @@ class UndoRedoManager(
         val command = redoStack.removeLastOrNull() ?: return false
         command.redo(executor)
         undoStack.addLast(command)
-        notifyListeners()
         return true
     }
 
@@ -72,18 +61,5 @@ class UndoRedoManager(
     fun clearHistory() {
         undoStack.clear()
         redoStack.clear()
-        notifyListeners()
-    }
-
-    fun addListener(listener: UndoRedoListener) {
-        listeners.add(listener)
-    }
-
-    fun removeListener(listener: UndoRedoListener) {
-        listeners.remove(listener)
-    }
-
-    private fun notifyListeners() {
-        listeners.forEach { it.onUndoRedoStateChanged() }
     }
 }
