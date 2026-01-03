@@ -35,14 +35,18 @@ data class CodeLocation(
     /**
      * Returns display string like "TaskService.kt:42" or "TaskService.kt:42-48" for multi-line selection
      */
-    fun toDisplayString(): String {
-        val fileName = relativePath.substringAfterLast('/')
+    fun toDisplayString(): String = formatPath(relativePath.substringAfterLast('/'))
+
+    /**
+     * Returns full path display string like "src/main/TaskService.kt:42" for tooltips
+     */
+    fun toFullPathDisplayString(): String = formatPath(relativePath)
+
+    private fun formatPath(path: String): String {
         return if (hasSelection() && endLine > line) {
-            // Multi-line selection: show line range
-            "$fileName:${line + 1}-${endLine + 1}"
+            "$path:${line + 1}-${endLine + 1}"
         } else {
-            // Single line (cursor or single-line selection)
-            "$fileName:${line + 1}"
+            "$path:${line + 1}"
         }
     }
 

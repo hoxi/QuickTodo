@@ -23,12 +23,12 @@ object CodeLocationUtil {
         val basePath = project.basePath ?: return null
         val absolutePath = virtualFile.path
 
-        // Convert to relative path
+        // Convert to relative path from project root
         val relativePath = if (absolutePath.startsWith(basePath)) {
             absolutePath.removePrefix(basePath).removePrefix("/")
         } else {
-            // File is outside project - use absolute path
-            absolutePath
+            // File is outside project - still use relative path from project root
+            virtualFile.name
         }
 
         val selectionModel = editor.selectionModel

@@ -79,6 +79,16 @@ class NewTaskDialog(
                     }
                 }
             }
+
+            override fun mouseEntered(e: MouseEvent) {
+                currentLocation?.let { location ->
+                    locationLinkLabel.toolTipText = location.toFullPathDisplayString()
+                }
+            }
+
+            override fun mouseExited(e: MouseEvent) {
+                locationLinkLabel.toolTipText = null
+            }
         })
 
         // Setup clear button
@@ -88,9 +98,9 @@ class NewTaskDialog(
 
         // Build location display panel (shown when location is linked)
         locationDisplayPanel.layout = BoxLayout(locationDisplayPanel, BoxLayout.X_AXIS)
-        locationDisplayPanel.add(locationLinkLabel)
-        locationDisplayPanel.add(Box.createHorizontalStrut(12))
         locationDisplayPanel.add(clearLocationButton)
+        locationDisplayPanel.add(Box.createHorizontalStrut(8))
+        locationDisplayPanel.add(locationLinkLabel)
         locationDisplayPanel.add(Box.createHorizontalGlue())
 
         // Build card panel for switching between states
