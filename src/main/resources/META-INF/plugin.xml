@@ -55,6 +55,14 @@
         <projectService serviceImplementation="com.oleksiy.quicktodo.service.DailyTaskStatsService"/>
         <projectService serviceImplementation="com.oleksiy.quicktodo.editor.TaskEditorMarkerService"/>
 
+        <applicationService serviceImplementation="com.oleksiy.quicktodo.settings.QuickTodoSettings"/>
+
+        <applicationConfigurable
+                parentId="tools"
+                instance="com.oleksiy.quicktodo.settings.QuickTodoConfigurable"
+                id="com.oleksiy.quicktodo.settings.QuickTodoConfigurable"
+                displayName="QuickTodo"/>
+
         <postStartupActivity implementation="com.oleksiy.quicktodo.editor.TaskEditorMarkerStartupActivity"/>
     </extensions>
 
