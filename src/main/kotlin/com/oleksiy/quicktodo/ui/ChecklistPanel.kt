@@ -102,7 +102,11 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
             tree,
             onUndo = { taskService.undo() },
             onRedo = { taskService.redo() },
-            getSelectedTasks = { getSelectedTasks() }
+            getSelectedTasks = { getSelectedTasks() },
+            onMoveUp = { moveSelectedTask(-1) },
+            onMoveDown = { moveSelectedTask(1) },
+            canMoveUp = { canMoveSelectedTask(-1) },
+            canMoveDown = { canMoveSelectedTask(1) }
         )
         addTaskHandler = AddTaskHandler(
             project,
@@ -323,8 +327,12 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
         val newIndex = currentIndex + direction
         if (newIndex < 0 || newIndex >= siblings.size) return
 
+        // When moving down, add 1 to target index to compensate for index adjustment
+        // in TaskRepository (it subtracts 1 when the source is before the target)
+        val targetIndex = if (direction > 0) newIndex + 1 else newIndex
+
         val taskIdToSelect = selectedTask.id
-        taskService.moveTask(selectedTask.id, parentTask?.id, newIndex)
+        taskService.moveTask(selectedTask.id, parentTask?.id, targetIndex)
         treeManager.selectTaskById(taskIdToSelect)
     }
 

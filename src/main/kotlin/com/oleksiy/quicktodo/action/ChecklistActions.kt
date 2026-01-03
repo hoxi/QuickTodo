@@ -4,7 +4,11 @@ import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.CustomShortcutSet
 import com.intellij.openapi.actionSystem.Toggleable
+import java.awt.Toolkit
+import java.awt.event.KeyEvent
+import javax.swing.KeyStroke
 import com.oleksiy.quicktodo.model.Priority
 import com.oleksiy.quicktodo.model.Task
 import com.oleksiy.quicktodo.service.TaskService
@@ -56,6 +60,12 @@ class MoveTaskAction(
     if (direction < 0) "Move selected task up" else "Move selected task down",
     if (direction < 0) AllIcons.Actions.MoveUp else AllIcons.Actions.MoveDown
 ) {
+    init {
+        val keyCode = if (direction < 0) KeyEvent.VK_UP else KeyEvent.VK_DOWN
+        val keyStroke = KeyStroke.getKeyStroke(keyCode, Toolkit.getDefaultToolkit().menuShortcutKeyMaskEx)
+        shortcutSet = CustomShortcutSet(keyStroke)
+    }
+
     override fun actionPerformed(e: AnActionEvent) {
         callback.moveSelectedTask(direction)
     }

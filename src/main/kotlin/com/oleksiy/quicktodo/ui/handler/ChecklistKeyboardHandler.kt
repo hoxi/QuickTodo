@@ -18,7 +18,11 @@ class ChecklistKeyboardHandler(
     private val tree: JTree,
     private val onUndo: () -> Unit,
     private val onRedo: () -> Unit,
-    private val getSelectedTasks: () -> List<Task>
+    private val getSelectedTasks: () -> List<Task>,
+    private val onMoveUp: () -> Unit,
+    private val onMoveDown: () -> Unit,
+    private val canMoveUp: () -> Boolean,
+    private val canMoveDown: () -> Boolean
 ) {
     /**
      * Sets up keyboard shortcuts on the tree.
@@ -51,6 +55,33 @@ class ChecklistKeyboardHandler(
             }
         }
 
+        val moveUpAction = object : AbstractAction() {
+            override fun actionPerformed(e: ActionEvent?) {
+                if (canMoveUp()) onMoveUp()
+            }
+        }
+
+        val moveDownAction = object : AbstractAction() {
+            override fun actionPerformed(e: ActionEvent?) {
+                if (canMoveDown()) onMoveDown()
+            }
+        }
+
+        // Define move keystrokes
+        val moveUpCtrl = KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK)
+        val moveUpMeta = KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.META_DOWN_MASK)
+        val moveDownCtrl = KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK)
+        val moveDownMeta = KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.META_DOWN_MASK)
+
+        // Clear any existing bindings for move shortcuts from ancestor maps
+        // This is needed because JTree has default Cmd+Down binding on macOS
+        tree.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).apply {
+            put(moveUpCtrl, "none")
+            put(moveUpMeta, "none")
+            put(moveDownCtrl, "none")
+            put(moveDownMeta, "none")
+        }
+
         tree.getInputMap(JComponent.WHEN_FOCUSED).apply {
             // Undo: Ctrl+Z (Windows/Linux) or Cmd+Z (macOS)
             put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_DOWN_MASK), "undoTask")
@@ -65,6 +96,12 @@ class ChecklistKeyboardHandler(
             put(KeyStroke.getKeyStroke(KeyEvent.VK_C, KeyEvent.META_DOWN_MASK), "copyTaskText")
             // ESC: Clear selection
             put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSelection")
+            // Move up: Ctrl+Up (Windows/Linux) or Cmd+Up (macOS)
+            put(moveUpCtrl, "moveTaskUp")
+            put(moveUpMeta, "moveTaskUp")
+            // Move down: Ctrl+Down (Windows/Linux) or Cmd+Down (macOS)
+            put(moveDownCtrl, "moveTaskDown")
+            put(moveDownMeta, "moveTaskDown")
         }
 
         tree.actionMap.apply {
@@ -72,6 +109,8 @@ class ChecklistKeyboardHandler(
             put("redoTask", redoAction)
             put("copyTaskText", copyAction)
             put("clearSelection", clearSelectionAction)
+            put("moveTaskUp", moveUpAction)
+            put("moveTaskDown", moveDownAction)
         }
     }
 }
