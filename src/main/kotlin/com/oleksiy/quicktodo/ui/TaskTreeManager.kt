@@ -23,12 +23,13 @@ class TaskTreeManager(
     fun isRefreshing(): Boolean = isRefreshing
 
     /**
-     * Refreshes the tree with current tasks, preserving expansion state.
+     * Refreshes the tree with current tasks, preserving expansion and selection state.
      */
     fun refreshTree() {
         isRefreshing = true
         try {
             val expandedTaskIds = getExpandedTaskIdsFromTree() + taskService.getExpandedTaskIds()
+            val selectedTaskId = getSelectedTaskId()
 
             val tasks = taskService.getTasks()
             val hideCompleted = taskService.isHideCompleted()
@@ -43,9 +44,21 @@ class TaskTreeManager(
 
             tree.model = DefaultTreeModel(rootNode)
             restoreExpandedState(expandedTaskIds)
+
+            if (selectedTaskId != null) {
+                selectTaskById(selectedTaskId)
+            }
         } finally {
             isRefreshing = false
         }
+    }
+
+    /**
+     * Gets the currently selected task's ID, or null if no task is selected.
+     */
+    private fun getSelectedTaskId(): String? {
+        val node = tree.lastSelectedPathComponent as? CheckedTreeNode
+        return (node?.userObject as? Task)?.id
     }
 
     /**

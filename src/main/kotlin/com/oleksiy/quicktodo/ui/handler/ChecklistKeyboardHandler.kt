@@ -45,6 +45,12 @@ class ChecklistKeyboardHandler(
             }
         }
 
+        val clearSelectionAction = object : AbstractAction() {
+            override fun actionPerformed(e: ActionEvent?) {
+                tree.clearSelection()
+            }
+        }
+
         tree.getInputMap(JComponent.WHEN_FOCUSED).apply {
             // Undo: Ctrl+Z (Windows/Linux) or Cmd+Z (macOS)
             put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_DOWN_MASK), "undoTask")
@@ -57,12 +63,15 @@ class ChecklistKeyboardHandler(
             // Copy
             put(KeyStroke.getKeyStroke(KeyEvent.VK_C, KeyEvent.CTRL_DOWN_MASK), "copyTaskText")
             put(KeyStroke.getKeyStroke(KeyEvent.VK_C, KeyEvent.META_DOWN_MASK), "copyTaskText")
+            // ESC: Clear selection
+            put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSelection")
         }
 
         tree.actionMap.apply {
             put("undoTask", undoAction)
             put("redoTask", redoAction)
             put("copyTaskText", copyAction)
+            put("clearSelection", clearSelectionAction)
         }
     }
 }
