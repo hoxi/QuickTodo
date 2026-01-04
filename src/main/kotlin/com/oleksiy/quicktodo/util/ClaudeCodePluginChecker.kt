@@ -15,7 +15,6 @@ object ClaudeCodePluginChecker {
      */
     fun isClaudeCodeInstalled(): Boolean {
         val pluginId = PluginId.getId(CLAUDE_CODE_PLUGIN_ID)
-        val plugin = PluginManagerCore.getPlugin(pluginId)
-        return plugin != null && plugin.isEnabled
+        return PluginManagerCore.getPlugin(pluginId) != null && !PluginManagerCore.isDisabled(pluginId)
     }
 }

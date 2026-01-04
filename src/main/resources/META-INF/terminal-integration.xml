@@ -1,0 +1,4 @@
+<idea-plugin>
+    <!-- Extensions that depend on org.jetbrains.plugins.terminal -->
+    <!-- This file is loaded only when the Terminal plugin is available -->
+</idea-plugin>

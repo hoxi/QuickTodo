@@ -60,10 +60,18 @@ class MoveTaskAction(
     if (direction < 0) "Move selected task up" else "Move selected task down",
     if (direction < 0) AllIcons.Actions.MoveUp else AllIcons.Actions.MoveDown
 ) {
-    init {
+    private val customShortcutSet: CustomShortcutSet = run {
         val keyCode = if (direction < 0) KeyEvent.VK_UP else KeyEvent.VK_DOWN
         val keyStroke = KeyStroke.getKeyStroke(keyCode, Toolkit.getDefaultToolkit().menuShortcutKeyMaskEx)
-        shortcutSet = CustomShortcutSet(keyStroke)
+        CustomShortcutSet(keyStroke)
+    }
+
+    /**
+     * Registers this action's keyboard shortcut with the given component.
+     * Must be called after the action is created to enable the shortcut.
+     */
+    fun registerShortcut(component: javax.swing.JComponent) {
+        registerCustomShortcutSet(customShortcutSet, component)
     }
 
     override fun actionPerformed(e: AnActionEvent) {

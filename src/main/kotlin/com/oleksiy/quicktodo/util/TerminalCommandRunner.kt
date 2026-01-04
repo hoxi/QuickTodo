@@ -34,8 +34,13 @@ object TerminalCommandRunner {
 
         return try {
             val terminalManager = TerminalToolWindowManager.getInstance(project)
-            val widget = terminalManager.createLocalShellWidget(project.basePath ?: ".", tabName)
-            widget.executeCommand(command)
+            val widget = terminalManager.createShellWidget(
+                project.basePath ?: ".",
+                tabName,
+                true,  // requestFocus
+                true   // deferSessionStartUntilUiShown
+            )
+            widget.sendCommandToExecute(command)
             true
         } catch (e: Exception) {
             false

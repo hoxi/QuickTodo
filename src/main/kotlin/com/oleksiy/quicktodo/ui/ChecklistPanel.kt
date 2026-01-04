@@ -147,6 +147,9 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
     }
 
     private fun createToolbarDecorator(): ToolbarDecorator {
+        val moveUpAction = MoveTaskAction(-1, this).apply { registerShortcut(tree) }
+        val moveDownAction = MoveTaskAction(1, this).apply { registerShortcut(tree) }
+
         return ToolbarDecorator.createDecorator(tree)
             .setAddAction { addTaskHandler.addTask() }
             .setRemoveAction { removeTaskHandler.removeSelectedTasks() }
@@ -154,8 +157,8 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
             .setEditActionUpdater { getSelectedTask() != null }
             .addExtraActions(
                 AddSubtaskAction(this),
-                MoveTaskAction(-1, this),
-                MoveTaskAction(1, this)
+                moveUpAction,
+                moveDownAction
             )
     }
 

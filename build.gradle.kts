@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.oleksiy"
-version = "1.0.8"
+version = "1.0.7"
 
 repositories {
     mavenCentral()
@@ -35,7 +35,11 @@ intellijPlatform {
         }
 
         changeNotes = """
-            Initial version
+            <ul>
+                <li>Added daily stats bar with task counters and focus time</li>
+                <li>New keyboard shortcuts for faster task management</li>
+                <li>Bug fixes and UI improvements</li>
+            </ul>
         """.trimIndent()
     }
 
