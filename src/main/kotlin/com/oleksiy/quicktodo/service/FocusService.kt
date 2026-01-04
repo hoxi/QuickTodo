@@ -1,9 +1,14 @@
 package com.oleksiy.quicktodo.service
 
+import com.intellij.ide.IdeEventQueue
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import com.oleksiy.quicktodo.model.TimerState
+import com.oleksiy.quicktodo.settings.QuickTodoSettings
+import java.awt.AWTEvent
+import java.awt.event.KeyEvent
+import java.awt.event.MouseEvent
 import java.util.concurrent.CopyOnWriteArrayList
 import javax.swing.Timer
 
@@ -20,8 +25,24 @@ class FocusService(private val project: Project) : Disposable {
     private var updateTimer: Timer? = null
     private val listeners = CopyOnWriteArrayList<FocusChangeListener>()
 
+    // Autopause state
+    private var lastActivityTime: Long = System.currentTimeMillis()
+    private var wasAutoPaused: Boolean = false
+    private val activityListener: IdeEventQueue.EventDispatcher
+
     private val taskService: TaskService
         get() = TaskService.getInstance(project)
+
+    init {
+        // Listen to IDE activity for autopause
+        activityListener = IdeEventQueue.EventDispatcher { event ->
+            if (event is KeyEvent || event is MouseEvent) {
+                onUserActivity()
+            }
+            false
+        }
+        IdeEventQueue.getInstance().addDispatcher(activityListener, this)
+    }
 
     fun getFocusedTaskId(): String? = focusedTaskId
 
@@ -221,7 +242,34 @@ class FocusService(private val project: Project) : Disposable {
 
     private fun tick() {
         if (focusedTaskId != null) {
+            checkIdleTimeout()
             notifyTimerTick()
+        }
+    }
+
+    private fun onUserActivity() {
+        lastActivityTime = System.currentTimeMillis()
+
+        // Auto-resume if was auto-paused
+        if (wasAutoPaused && focusedTaskId != null) {
+            wasAutoPaused = false
+            resumeFocus()
+        }
+    }
+
+    private fun checkIdleTimeout() {
+        val settings = QuickTodoSettings.getInstance()
+
+        if (!settings.isAutoPauseEnabled()) return
+        if (focusedTaskId == null) return
+        if (timerStates[focusedTaskId] != TimerState.RUNNING) return
+
+        val idleThresholdMs = settings.getIdleMinutes() * 60 * 1000L
+        val idleTime = System.currentTimeMillis() - lastActivityTime
+
+        if (idleTime >= idleThresholdMs && !wasAutoPaused) {
+            wasAutoPaused = true
+            pauseFocus()
         }
     }
 
@@ -242,6 +290,7 @@ class FocusService(private val project: Project) : Disposable {
     }
 
     override fun dispose() {
+        IdeEventQueue.getInstance().removeDispatcher(activityListener)
         stopSwingTimer()
 
         val focusedId = focusedTaskId
