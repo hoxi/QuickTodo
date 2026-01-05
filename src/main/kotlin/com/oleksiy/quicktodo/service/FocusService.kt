@@ -61,6 +61,7 @@ class FocusService(private val project: Project) : Disposable {
         }
 
         focusedTaskId = taskId
+        task.lastModified = System.currentTimeMillis()
         startTimer(taskId)
         startParentTimers(taskId)
         startSwingTimer()

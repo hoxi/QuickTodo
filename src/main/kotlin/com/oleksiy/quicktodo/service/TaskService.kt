@@ -170,6 +170,7 @@ class TaskService : PersistentStateComponent<TaskService.State> {
         val beforeStates = mapOf(task.id to task.isCompleted)
         task.isCompleted = completed
         task.completedAt = if (completed) System.currentTimeMillis() else null
+        task.lastModified = System.currentTimeMillis()
 
         undoRedoManager.recordCommand(
             SetTaskCompletionCommand(taskId, beforeStates, completed)
@@ -185,6 +186,7 @@ class TaskService : PersistentStateComponent<TaskService.State> {
         if (oldPriority == priority) return true
 
         task.setPriorityEnum(priority)
+        task.lastModified = System.currentTimeMillis()
         undoRedoManager.recordCommand(SetTaskPriorityCommand(taskId, oldPriority, priority))
         notifyListeners()
         return true
@@ -200,6 +202,7 @@ class TaskService : PersistentStateComponent<TaskService.State> {
             oldLocation?.column == location?.column) return true
 
         task.codeLocation = location?.copy()
+        task.lastModified = System.currentTimeMillis()
         undoRedoManager.recordCommand(SetTaskLocationCommand(taskId, oldLocation, location?.copy()))
         notifyListeners()
         return true
@@ -212,6 +215,7 @@ class TaskService : PersistentStateComponent<TaskService.State> {
         if (oldText == newText) return true
 
         task.text = newText
+        task.lastModified = System.currentTimeMillis()
         undoRedoManager.recordCommand(EditTaskTextCommand(taskId, oldText, newText))
         notifyListeners()
         return true
@@ -238,6 +242,10 @@ class TaskService : PersistentStateComponent<TaskService.State> {
         val result = repository.moveTasks(taskIds, targetParentId, targetIndex)
 
         if (result) {
+            // Update lastModified for all moved tasks
+            taskIds.forEach { taskId ->
+                findTask(taskId)?.lastModified = System.currentTimeMillis()
+            }
             undoRedoManager.recordCommand(MoveTasksCommand(moveInfos, targetParentId, targetIndex))
             notifyListeners()
         }

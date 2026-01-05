@@ -18,6 +18,7 @@ class QuickTodoSettings : PersistentStateComponent<QuickTodoSettings.State> {
         var tooltipBehavior: TooltipBehavior = TooltipBehavior.TRUNCATED
         var autoPauseEnabled: Boolean = true
         var idleMinutes: Int = 5
+        var recentTasksCount: Int = 10
     }
 
     private var myState = State()
@@ -44,6 +45,12 @@ class QuickTodoSettings : PersistentStateComponent<QuickTodoSettings.State> {
 
     fun setIdleMinutes(minutes: Int) {
         myState.idleMinutes = minutes.coerceIn(1, 60)
+    }
+
+    fun getRecentTasksCount(): Int = myState.recentTasksCount
+
+    fun setRecentTasksCount(count: Int) {
+        myState.recentTasksCount = count.coerceIn(5, 50)
     }
 
     companion object {
