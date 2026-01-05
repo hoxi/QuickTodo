@@ -86,5 +86,15 @@
             <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta shift T" replace-all="true"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
+
+        <action id="com.oleksiy.quicktodo.ShowRecentTasks"
+                class="com.oleksiy.quicktodo.action.ShowRecentTasksAction"
+                text="Recent Tasks"
+                description="Show recent tasks in a popup">
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl F1"/>
+            <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta F1" replace-all="true"/>
+            <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta F1" replace-all="true"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
     </actions>
 </idea-plugin>

@@ -5,7 +5,6 @@ import com.intellij.ui.TitledSeparator
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
-import com.intellij.util.ui.JBUI
 import javax.swing.ButtonGroup
 import javax.swing.JComponent
 import javax.swing.JLabel
@@ -20,6 +19,7 @@ class QuickTodoConfigurable : Configurable {
     private val radioButtons = mutableMapOf<TooltipBehavior, JRadioButton>()
     private lateinit var autoPauseCheckBox: JBCheckBox
     private lateinit var idleMinutesField: JBTextField
+    private lateinit var recentTasksCountField: JBTextField
 
     override fun getDisplayName(): String = "QuickTodo"
 
@@ -28,7 +28,7 @@ class QuickTodoConfigurable : Configurable {
 
         // Create radio buttons for tooltip behavior
         val buttonGroup = ButtonGroup()
-        for (behavior in TooltipBehavior.values()) {
+        for (behavior in TooltipBehavior.entries) {
             val radioButton = JRadioButton(behavior.displayName)
             radioButton.isSelected = settings.getTooltipBehavior() == behavior
             buttonGroup.add(radioButton)
@@ -54,6 +54,15 @@ class QuickTodoConfigurable : Configurable {
             idleMinutesField.isEnabled = autoPauseCheckBox.isSelected
         }
 
+        // Create recent tasks count field
+        recentTasksCountField = JBTextField(settings.getRecentTasksCount().toString(), 5)
+        val recentTasksPanel = JPanel().apply {
+            layout = java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0)
+            add(JLabel("Show"))
+            add(recentTasksCountField)
+            add(JLabel("recent tasks"))
+        }
+
         settingsPanel = FormBuilder.createFormBuilder()
             .addComponent(TitledSeparator("Tooltip Behavior"))
             .addComponent(radioButtons[TooltipBehavior.ALWAYS]!!, 1)
@@ -62,6 +71,9 @@ class QuickTodoConfigurable : Configurable {
             .addVerticalGap(10)
             .addComponent(TitledSeparator("Focus Timer"))
             .addComponent(autoPausePanel, 1)
+            .addVerticalGap(10)
+            .addComponent(TitledSeparator("Recent Tasks"))
+            .addComponent(recentTasksPanel, 1)
             .addComponentFillVertically(JPanel(), 0)
             .panel
 
@@ -84,7 +96,13 @@ class QuickTodoConfigurable : Configurable {
             false
         }
 
-        return tooltipModified || autoPauseModified || idleMinutesModified
+        val recentTasksCountModified = try {
+            recentTasksCountField.text.toInt() != settings.getRecentTasksCount()
+        } catch (_: NumberFormatException) {
+            false
+        }
+
+        return tooltipModified || autoPauseModified || idleMinutesModified || recentTasksCountModified
     }
 
     override fun apply() {
@@ -104,6 +122,13 @@ class QuickTodoConfigurable : Configurable {
         } catch (e: NumberFormatException) {
             // Keep current value if invalid
         }
+
+        try {
+            val count = recentTasksCountField.text.toInt()
+            settings.setRecentTasksCount(count)
+        } catch (e: NumberFormatException) {
+            // Keep current value if invalid
+        }
     }
 
     override fun reset() {
@@ -117,5 +142,7 @@ class QuickTodoConfigurable : Configurable {
         autoPauseCheckBox.isSelected = settings.isAutoPauseEnabled()
         idleMinutesField.text = settings.getIdleMinutes().toString()
         idleMinutesField.isEnabled = autoPauseCheckBox.isSelected
+
+        recentTasksCountField.text = settings.getRecentTasksCount().toString()
     }
 }
