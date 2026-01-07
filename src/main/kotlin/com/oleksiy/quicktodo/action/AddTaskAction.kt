@@ -4,8 +4,9 @@ import com.oleksiy.quicktodo.service.TaskService
 import com.oleksiy.quicktodo.ui.NewTaskDialog
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.project.DumbAware
 
-class AddTaskAction : AnAction() {
+class AddTaskAction : AnAction(), DumbAware {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
         val taskService = project.getService(TaskService::class.java) ?: return

@@ -97,4 +97,8 @@
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
     </actions>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <registryKey key="quicktodo.dumb.aware" defaultValue="true" description="Allow QuickTodo to work during indexing"/>
+    </extensions>
 </idea-plugin>
