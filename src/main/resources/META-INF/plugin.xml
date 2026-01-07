@@ -71,7 +71,7 @@
                 class="com.oleksiy.quicktodo.action.ShowChecklistAction"
                 text="QuickTodo"
                 description="Open QuickTodo tool window">
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt C"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt Q" replace-all="true"/>
             <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta alt C" replace-all="true"/>
             <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta alt C" replace-all="true"/>
             <add-to-group group-id="ActivateToolWindowActions"/>
@@ -79,17 +79,18 @@
 
         <action id="com.oleksiy.quicktodo.AddTask"
                 class="com.oleksiy.quicktodo.action.AddTaskAction"
-                text="Add Task"
+                text="Add QuickTodo"
                 description="Add a new task to QuickTodo">
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift T"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl F2" replace-all="true"/>
             <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift T" replace-all="true"/>
             <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta shift T" replace-all="true"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>
 
         <action id="com.oleksiy.quicktodo.ShowRecentTasks"
                 class="com.oleksiy.quicktodo.action.ShowRecentTasksAction"
-                text="Recent Tasks"
+                text="Recent QuickTodos"
                 description="Show recent tasks in a popup">
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl F1"/>
             <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta F1" replace-all="true"/>

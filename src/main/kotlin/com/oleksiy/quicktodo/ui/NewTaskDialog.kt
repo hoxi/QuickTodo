@@ -33,6 +33,12 @@ class NewTaskDialog(
     private val initialLocation: CodeLocation? = null
 ) : DialogWrapper(project) {
 
+    // Convenience constructor for editor context
+    constructor(project: Project, location: CodeLocation) : this(
+        project = project,
+        initialLocation = location
+    )
+
     private val nameField = JBTextField(initialText)
     private val priorityComboBox = ComboBox(Priority.entries.toTypedArray())
 
