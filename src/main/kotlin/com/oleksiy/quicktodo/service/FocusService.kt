@@ -41,7 +41,7 @@ class FocusService(private val project: Project) : Disposable {
             }
             false
         }
-        IdeEventQueue.getInstance().addDispatcher(activityListener, this)
+        IdeEventQueue.getInstance().addPostprocessor(activityListener, this)
     }
 
     fun getFocusedTaskId(): String? = focusedTaskId
@@ -389,7 +389,7 @@ class FocusService(private val project: Project) : Disposable {
     }
 
     override fun dispose() {
-        IdeEventQueue.getInstance().removeDispatcher(activityListener)
+        IdeEventQueue.getInstance().removePostprocessor(activityListener)
         stopSwingTimer()
 
         val focusedId = focusedTaskId

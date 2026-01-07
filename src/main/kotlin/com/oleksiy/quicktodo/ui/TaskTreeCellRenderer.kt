@@ -10,9 +10,12 @@ import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import java.awt.BorderLayout
 import java.awt.Component
+import java.awt.FlowLayout
 import javax.swing.JCheckBox
+import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JTree
+import javax.swing.SwingConstants
 import javax.swing.tree.TreeCellRenderer
 
 /**
@@ -25,6 +28,7 @@ class TaskTreeCellRenderer(
 
     private val checkbox = JCheckBox()
     private val textRenderer = SimpleColoredComponent()
+    private val timerLabel = JLabel()
 
     // Track location link text for click detection
     var textBeforeLink: String = ""
@@ -39,9 +43,16 @@ class TaskTreeCellRenderer(
         isOpaque = false
         checkbox.isOpaque = false
         textRenderer.isOpaque = false
+        timerLabel.isOpaque = false
+        timerLabel.horizontalTextPosition = SwingConstants.LEFT
+
+        val centerPanel = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
+        centerPanel.isOpaque = false
+        centerPanel.add(textRenderer)
+        centerPanel.add(timerLabel)
 
         add(checkbox, BorderLayout.WEST)
-        add(textRenderer, BorderLayout.CENTER)
+        add(centerPanel, BorderLayout.CENTER)
     }
 
     override fun getTreeCellRendererComponent(
@@ -58,6 +69,9 @@ class TaskTreeCellRenderer(
         textRenderer.icon = null
         textBeforeLink = ""
         linkText = ""
+        timerLabel.text = ""
+        timerLabel.icon = null
+        timerLabel.isVisible = false
 
         val node = value as? CheckedTreeNode
         val task = node?.userObject as? Task
@@ -92,11 +106,15 @@ class TaskTreeCellRenderer(
         val textAttributes = when {
             isCompleted -> SimpleTextAttributes(
                 SimpleTextAttributes.STYLE_STRIKEOUT,
-                SimpleTextAttributes.GRAYED_ATTRIBUTES.fgColor
+                if (selected) UIUtil.getTreeSelectionForeground(hasFocus) else SimpleTextAttributes.GRAYED_ATTRIBUTES.fgColor
             )
             isFocused || isAncestorOfFocused -> SimpleTextAttributes(
                 SimpleTextAttributes.STYLE_BOLD or SimpleTextAttributes.STYLE_UNDERLINE,
-                null
+                if (selected) UIUtil.getTreeSelectionForeground(hasFocus) else null
+            )
+            selected -> SimpleTextAttributes(
+                SimpleTextAttributes.STYLE_PLAIN,
+                UIUtil.getTreeSelectionForeground(hasFocus)
             )
             else -> SimpleTextAttributes.REGULAR_ATTRIBUTES
         }
@@ -108,20 +126,28 @@ class TaskTreeCellRenderer(
         if (task.subtasks.isNotEmpty()) {
             val (completed, total) = countCompletionProgress(task)
             textRenderer.append("  ")
+            val progressAttributes = if (selected) {
+                SimpleTextAttributes(SimpleTextAttributes.STYLE_PLAIN, UIUtil.getTreeSelectionForeground(hasFocus))
+            } else {
+                SimpleTextAttributes.GRAYED_ATTRIBUTES
+            }
             textRenderer.append(
                 "$completed/$total",
-                SimpleTextAttributes.GRAYED_ATTRIBUTES
+                progressAttributes
             )
         }
 
         // Show timer if has accumulated time
         if (hasAccumulatedTime) {
             val timeStr = focusService.getFormattedTime(task.id)
-            textRenderer.append("  ")
-            textRenderer.append(
-                "\u23F1 $timeStr",
-                SimpleTextAttributes.GRAYED_ATTRIBUTES
-            )
+            timerLabel.text = " $timeStr"
+            timerLabel.icon = QuickTodoIcons.Timer
+            timerLabel.foreground = if (selected) {
+                UIUtil.getTreeSelectionForeground(hasFocus)
+            } else {
+                SimpleTextAttributes.GRAYED_ATTRIBUTES.fgColor
+            }
+            timerLabel.isVisible = true
         }
 
         // Set flag icon based on priority (on the left, before text)
@@ -138,10 +164,17 @@ class TaskTreeCellRenderer(
             textRenderer.append("        ", SimpleTextAttributes.REGULAR_ATTRIBUTES)
             textBeforeLink = textRenderer.toString()
             linkText = task.codeLocation!!.toDisplayString()
-            val linkAttributes = SimpleTextAttributes(
-                SimpleTextAttributes.STYLE_UNDERLINE,
-                SimpleTextAttributes.GRAYED_ATTRIBUTES.fgColor
-            )
+            val linkAttributes = if (selected) {
+                SimpleTextAttributes(
+                    SimpleTextAttributes.STYLE_UNDERLINE,
+                    UIUtil.getTreeSelectionForeground(hasFocus)
+                )
+            } else {
+                SimpleTextAttributes(
+                    SimpleTextAttributes.STYLE_UNDERLINE,
+                    SimpleTextAttributes.GRAYED_ATTRIBUTES.fgColor
+                )
+            }
             textRenderer.append(linkText, linkAttributes)
         }
 

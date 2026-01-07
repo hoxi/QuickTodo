@@ -2,6 +2,7 @@ package com.oleksiy.quicktodo.ui
 
 import com.oleksiy.quicktodo.model.Priority
 import com.intellij.openapi.util.IconLoader
+import com.intellij.icons.AllIcons
 import javax.swing.Icon
 
 object QuickTodoIcons {
@@ -25,6 +26,9 @@ object QuickTodoIcons {
 
     @JvmField
     val Claude: Icon = IconLoader.getIcon("/icons/claude.svg", javaClass)
+
+    @JvmField
+    val Timer: Icon = IconLoader.getIcon("/icons/toolWindowTimer.svg", javaClass)
 
     fun getIconForPriority(priority: Priority): Icon? {
         return when (priority) {

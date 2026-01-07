@@ -123,7 +123,8 @@ class DailyStatsPanel(
         val totalMs = accumulatedMs + currentSessionMs
 
         if (totalMs > 0) {
-            focusTimeLabel.text = "\u23F1 ${formatTimeShort(totalMs)}"
+            focusTimeLabel.text = formatTimeShort(totalMs)
+            focusTimeLabel.icon = QuickTodoIcons.Timer
             focusTimeLabel.toolTipText = "Focus time today: ${formatTimeFull(totalMs)}"
             focusTimeLabel.isVisible = true
         } else {
