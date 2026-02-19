@@ -37,9 +37,10 @@ class NewTaskDialog(
 ) : DialogWrapper(project) {
 
     private val nameField = JBTextField(initialText)
-    private val descriptionTextArea = JBTextArea(initialDescription, 3, 30).apply {
+    private val descriptionTextArea = JBTextArea(initialDescription, 8, 30).apply {
         lineWrap = true
         wrapStyleWord = true
+        margin = JBUI.insets(5)
     }
     private val descriptionScrollPane = JBScrollPane(descriptionTextArea)
     private val priorityComboBox = ComboBox(Priority.entries.toTypedArray())
@@ -159,7 +160,7 @@ class NewTaskDialog(
 
     override fun createCenterPanel(): JComponent {
         nameField.preferredSize = Dimension(350, nameField.preferredSize.height)
-        descriptionScrollPane.preferredSize = Dimension(350, 80)
+        descriptionScrollPane.preferredSize = Dimension(350, JBUI.scale(160))
 
         return FormBuilder.createFormBuilder()
             .addLabeledComponent("Name:", nameField)
@@ -169,6 +170,8 @@ class NewTaskDialog(
             .addLabeledComponent("Location:", locationCardPanel)
             .panel
     }
+
+    override fun isResizable(): Boolean = true
 
     override fun getPreferredFocusedComponent(): JComponent = nameField
 
