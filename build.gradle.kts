@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.oleksiy"
-version = "1.0.9"
+version = "1.0.10"
 
 repositories {
     mavenCentral()
@@ -33,11 +33,11 @@ intellijPlatform {
         changeNotes = """
             <h3>New Features</h3>
             <ul>
-                <li>Setting to enable/disable Claude integration (disabled by default)</li>
+                <li>Added Speed Search – Ctrl+F (Command+F)</li>
             </ul>
-            <h3>Bug Fixes</h3>
+            <h3>Improvements</h3>
             <ul>
-                <li>Changed task description in xml from attribute to tag</li>
+                <li>Visual UI improvements</li>
             </ul>
         """.trimIndent()
     }
