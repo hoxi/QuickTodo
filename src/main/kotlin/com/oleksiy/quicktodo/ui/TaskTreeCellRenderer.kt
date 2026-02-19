@@ -153,7 +153,7 @@ class TaskTreeCellRenderer(
             textBeforeDescriptionIndicator = textRenderer.toString()
             descriptionIndicatorText = "[...]"
             val indicatorAttributes = SimpleTextAttributes(
-                SimpleTextAttributes.STYLE_UNDERLINE,
+                SimpleTextAttributes.STYLE_PLAIN,
                 JBUI.CurrentTheme.Link.Foreground.ENABLED
             )
             textRenderer.append(descriptionIndicatorText, indicatorAttributes)

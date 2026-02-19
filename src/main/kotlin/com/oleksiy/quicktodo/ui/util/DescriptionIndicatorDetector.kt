@@ -12,6 +12,9 @@ import java.awt.event.MouseEvent
  */
 object DescriptionIndicatorDetector {
 
+    /** Horizontal padding around the indicator text to make it easier to click. */
+    private const val INDICATOR_CLICK_PADDING = 4
+
     /**
      * Data class holding the result of indicator bounds calculation.
      */
@@ -52,8 +55,10 @@ object DescriptionIndicatorDetector {
 
         // Use font metrics for accurate positioning
         val fm = tree.getFontMetrics(tree.font)
-        val indicatorStartX = textStartX + fm.stringWidth(renderer.textBeforeDescriptionIndicator)
-        val indicatorEndX = indicatorStartX + fm.stringWidth(renderer.descriptionIndicatorText)
+        val textIndicatorStartX = textStartX + fm.stringWidth(renderer.textBeforeDescriptionIndicator)
+        val textIndicatorEndX = textIndicatorStartX + fm.stringWidth(renderer.descriptionIndicatorText)
+        val indicatorStartX = textIndicatorStartX - INDICATOR_CLICK_PADDING
+        val indicatorEndX = textIndicatorEndX + INDICATOR_CLICK_PADDING
 
         return IndicatorBounds(indicatorStartX, indicatorEndX, task)
     }
