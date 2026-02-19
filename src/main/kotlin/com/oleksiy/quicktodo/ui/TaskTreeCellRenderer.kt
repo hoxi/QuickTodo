@@ -6,6 +6,7 @@ import com.oleksiy.quicktodo.service.FocusService
 import com.intellij.ui.CheckedTreeNode
 import com.intellij.ui.SimpleColoredComponent
 import com.intellij.ui.SimpleTextAttributes
+import com.intellij.ui.speedSearch.SpeedSearchUtil
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import java.awt.BorderLayout
@@ -170,6 +171,8 @@ class TaskTreeCellRenderer(
             )
             textRenderer.append(linkText, linkAttributes)
         }
+
+        SpeedSearchUtil.applySpeedSearchHighlighting(tree, textRenderer, true, selected)
 
         return this
     }

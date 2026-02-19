@@ -25,6 +25,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.CheckedTreeNode
 import com.intellij.ui.ToolbarDecorator
+import com.intellij.ui.TreeSpeedSearch
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Graphics
@@ -269,6 +270,12 @@ class ChecklistPanel(private val project: Project) : ChecklistActionCallback, Di
 
         // Enable tooltips for code location links
         javax.swing.ToolTipManager.sharedInstance().registerComponent(taskTree)
+
+        TreeSpeedSearch.installOn(taskTree, false) { treePath ->
+            val node = treePath.lastPathComponent as? CheckedTreeNode
+            val task = node?.userObject as? Task
+            task?.text ?: ""
+        }
 
         setupMouseListeners(taskTree)
         setupKeyboardShortcuts(taskTree)
